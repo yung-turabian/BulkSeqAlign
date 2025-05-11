@@ -21,8 +21,20 @@ Bard College
 import argparse
 import sys
 import time
+import os
+import platform
+
+SYSTEM = platform.system()
 
 SKIPPED_CHAR = '_'
+
+def clear_console():
+    if SYSTEM == 'Windows':
+        os.system('cls')
+    elif SYSTEM in ('Linux', 'Darwin'):
+        os.system('clear')
+    else:
+        print("Operating system not supported to clear console.")
 
 """
 Prints a matrix, for debugging purposes. Also it is horrible and does not do any
@@ -56,6 +68,9 @@ class SequenceAlignment:
     alignment = ""
     cost = sys.maxsize
 
+    start_index = 0
+    end_index = 0
+
     def __init__( self, A, B ):
         self.A = A
         self.B = B
@@ -77,6 +92,10 @@ class SequenceAlignment:
         return f"{self.alignment}"
 
     def regen( self, newA ):
+        if self.cost == 0:
+            raise RuntimeError( "Error: Optimal adjacency already found!" )
+            return
+
         self.A = newA
         self.nA = len( newA )
 
@@ -134,10 +153,12 @@ class SequenceAlignment:
         alignmentB = ""
         i = self.nA
         j = self.nB 
+        
+        min_cost = self.cost
         cost = 0
 
         # We don't care about multiple instances if they have same cost
-        while i > 0 or j > 0 and cost < self.cost: 
+        while i > 0 or j > 0 and cost < min_cost: 
             if self.F[i][j] == self.F[i - 1][j - 1] + self.S[i - 1][j - 1]:
                 alignmentA = self.A[i - 1] + alignmentA
                 alignmentB = self.B[j - 1] + alignmentB
@@ -145,10 +166,22 @@ class SequenceAlignment:
                 i -= 1
                 j -= 1
             elif i > 0 and self.F[i][j] == self.F[i - 1][j] + self.dA:
-                alignmentA = self.A[i - 1] + alignmentA
-                alignmentB = SKIPPED_CHAR + alignmentB
-                if i != 1:
-                    cost += self.dA
+    
+                # Don't charge for deletions before the sequence
+                # we are searching for. This means if we are looking
+                # at the first index of target, ingore the previous
+                # of long text.
+                if self.A[i - 1] == self.A[0]:
+                    if self.B[j - 1] == self.A[i - 1]:
+                        alignmentA = self.A[i - 1] + alignmentA
+                        alignmentB = SKIPPED_CHAR + alignmentB
+                        cost += self.dA
+                else:
+                    # If we skip all previous deletions, then we can
+                    # safely assume the starting index will be this
+                    # last instance of matching letter
+                    self.start_index = j
+
                 i -= 1
             else:
                 alignmentA = SKIPPED_CHAR + alignmentA
@@ -157,20 +190,21 @@ class SequenceAlignment:
                 j -= 1
 
 
-        if cost < self.cost:
+        if cost < min_cost:
             alignmentStr = "" 
             for c1, c2 in zip( alignmentA, alignmentB ):
                 alignmentStr += (c1 + c2 + '\n')
 
             self.alignment = alignmentStr
             self.cost = cost
+            self.end_index = self.start_index + len( alignmentA )
         else:
             return
 
 
 def print_header( alignment ):
-    print( f"opt index ? cost {alignment.cost}" )
-    print( "Start at ? in the long text" )
+    print( f"opt index {alignment.end_index} cost {alignment.cost}" )
+    print( f"Start at {alignment.start_index} in the long text" )
     print( "Alignment (target on right). Skipped chars are aligned to '_'." )
     print( alignment )
 
@@ -178,16 +212,15 @@ def main():
     parser = argparse.ArgumentParser(
             prog="BulkSeqAlign",
             description="A modified sequence alignment aglorithm for longer text inputs.",
-            epilog='Sup Sven')
-    parser.add_argument('string_name')
-    parser.add_argument("--somearg", help="some help", default="val")
+            epilog='')
+    parser.add_argument( 'target' )
+    parser.add_argument( "--somearg", help="some help", default="val" )
 
     args = parser.parse_args()
-
-
     
     line = sys.stdin.readline()
-    seq = SequenceAlignment( line, args.string_name )
+    seq = SequenceAlignment( line, args.target )
+    #print_header( seq )
 
     while True:
         line = sys.stdin.readline()
@@ -195,8 +228,10 @@ def main():
             break
 
         seq.regen( line )
+        #clear_console()
+        #print_header( seq )
 
-        #time.sleep(3)
+        #time.sleep(1)
 
     print_header( seq )
 
