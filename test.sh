@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/usr/bin/bash
 
 prog=./seqalign.py
 last_output=""
@@ -14,6 +14,7 @@ function assert {
 				echo "✗"
 				echo "Expected: $expected"
 				echo "Actual: $actual"
+				exit 1
 		fi
 }
 
@@ -24,7 +25,10 @@ function run {
 		last_output=$(cat $fname | $prog $target | awk 'NR==1{end=$3; cost=$5} NR==2{print $3, end, cost}')
 }
 
-run "test.txt" "hello"
-assert "hello" "0 5 0" 
+run "tests/hello.txt" "hello"
+assert "hello" "31 35 0" 
 
-#cat anna.txt | ./seqalign.py "that?...\" he"
+
+target="that?...\" he"
+run "tests/anna.txt" $target 
+assert "Anna1" "0 0 0"

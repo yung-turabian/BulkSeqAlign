@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 """
-
 Uses the Needleman-Wunsch algorithm as a starting point.
 
 Rather than memoization, we use a 'bottom-up iterative approach' through dynamic programming. Each sub-alignment is computed only once.
@@ -157,14 +156,18 @@ class SequenceAlignment:
         min_cost = self.cost
         cost = 0
 
+
+
         # We don't care about multiple instances if they have same cost
-        while i > 0 or j > 0 and cost < min_cost: 
-            if self.F[i][j] == self.F[i - 1][j - 1] + self.S[i - 1][j - 1]:
+        while ( i > 0 or j > 0 ) and cost < min_cost: 
+            if i > 0 and j > 0 and self.F[i][j] == self.F[i - 1][j - 1] + self.S[i - 1][j - 1]:
                 alignmentA = self.A[i - 1] + alignmentA
                 alignmentB = self.B[j - 1] + alignmentB
                 cost += self.S[i - 1][j - 1] # Accounts for matches and mismatches
                 i -= 1
                 j -= 1
+
+                self.start_index = i + 1
             elif i > 0 and self.F[i][j] == self.F[i - 1][j] + self.dA:
     
                 # Don't charge for deletions before the sequence
@@ -176,11 +179,6 @@ class SequenceAlignment:
                         alignmentA = self.A[i - 1] + alignmentA
                         alignmentB = SKIPPED_CHAR + alignmentB
                         cost += self.dA
-                else:
-                    # If we skip all previous deletions, then we can
-                    # safely assume the starting index will be this
-                    # last instance of matching letter
-                    self.start_index = j
 
                 i -= 1
             else:
@@ -191,13 +189,15 @@ class SequenceAlignment:
 
 
         if cost < min_cost:
+
+
             alignmentStr = "" 
             for c1, c2 in zip( alignmentA, alignmentB ):
                 alignmentStr += (c1 + c2 + '\n')
 
             self.alignment = alignmentStr
             self.cost = cost
-            self.end_index = self.start_index + len( alignmentA )
+            self.end_index = self.start_index + len( alignmentA ) - 1
         else:
             return
 
@@ -227,13 +227,20 @@ def main():
         if not line:
             break
 
-        seq.regen( line )
-        #clear_console()
-        #print_header( seq )
+        # Found the first instance
+        if seq.cost == 0:
+            break
 
-        #time.sleep(1)
+        print_header( seq )
+        print_matrix( seq.S )
+        print_matrix( seq.F )
+        seq.regen( line )
+
+
 
     print_header( seq )
+    print_matrix( seq.S )
+    print_matrix( seq.F )
 
     """
     for word in sys.stdin.read().split():
