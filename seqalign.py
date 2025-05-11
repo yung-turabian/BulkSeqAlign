@@ -20,13 +20,14 @@ Bard College
 
 import argparse
 import sys
+import time
 
+SKIPPED_CHAR = '_'
 
 """
 Prints a matrix, for debugging purposes. Also it is horrible and does not do any
 sort of alignment of lables or elements.
 """
-
 def print_matrix( m ):
     for i, row in enumerate(m):
         print (" ".join(map(str, row)) )
@@ -53,7 +54,7 @@ class SequenceAlignment:
     F = []
 
     alignment = ""
-    cost = 0
+    cost = sys.maxsize
 
     def __init__( self, A, B ):
         self.A = A
@@ -64,16 +65,26 @@ class SequenceAlignment:
         self.dB = self.penalties["deletion_in_target"]
 
         self.compute_similarity_matrix()
-        print_matrix( self.S )
+        #print_matrix( self.S )
 
         self.compute_f_matrix()
-        print_matrix( self.F )
+        #print_matrix( self.F )
 
         self.seq_alignment()
 
 
     def __str__( self ):
         return f"{self.alignment}"
+
+    def regen( self, newA ):
+        self.A = newA
+        self.nA = len( newA )
+
+        self.compute_similarity_matrix()
+
+        self.compute_f_matrix()
+
+        self.seq_alignment()
 
     """
     `A` should be the long document.
@@ -123,32 +134,50 @@ class SequenceAlignment:
         alignmentB = ""
         i = self.nA
         j = self.nB 
+        cost = 0
 
-        while i > 0 or j > 0:
+        # We don't care about multiple instances if they have same cost
+        while i > 0 or j > 0 and cost < self.cost: 
             if self.F[i][j] == self.F[i - 1][j - 1] + self.S[i - 1][j - 1]:
                 alignmentA = self.A[i - 1] + alignmentA
                 alignmentB = self.B[j - 1] + alignmentB
+                cost += self.S[i - 1][j - 1] # Accounts for matches and mismatches
                 i -= 1
                 j -= 1
             elif i > 0 and self.F[i][j] == self.F[i - 1][j] + self.dA:
                 alignmentA = self.A[i - 1] + alignmentA
-                alignmentB = '-' + alignmentB
+                alignmentB = SKIPPED_CHAR + alignmentB
+                if i != 1:
+                    cost += self.dA
                 i -= 1
             else:
-                alignmentA = '-' + alignmentA
+                alignmentA = SKIPPED_CHAR + alignmentA
                 alignmentB = self.B[j - 1] + alignmentB
+                cost += self.dB
                 j -= 1
 
-        alignmentStr = "" 
-        for c1, c2 in zip( alignmentB, alignmentA ):
-            alignmentStr += (c1 + c2 + '\n')
 
-        self.alignment = "Cost: " + str(self.cost) + "\n" + alignmentStr 
+        if cost < self.cost:
+            alignmentStr = "" 
+            for c1, c2 in zip( alignmentA, alignmentB ):
+                alignmentStr += (c1 + c2 + '\n')
+
+            self.alignment = alignmentStr
+            self.cost = cost
+        else:
+            return
+
+
+def print_header( alignment ):
+    print( f"opt index ? cost {alignment.cost}" )
+    print( "Start at ? in the long text" )
+    print( "Alignment (target on right). Skipped chars are aligned to '_'." )
+    print( alignment )
 
 def main():
     parser = argparse.ArgumentParser(
-            prog="CoolProgram",
-            description="Hw13",
+            prog="BulkSeqAlign",
+            description="A modified sequence alignment aglorithm for longer text inputs.",
             epilog='Sup Sven')
     parser.add_argument('string_name')
     parser.add_argument("--somearg", help="some help", default="val")
@@ -157,19 +186,19 @@ def main():
 
 
     
-    #seq = SequenceAlignment( "Hello", "H llo" )
-    #print( seq )
+    line = sys.stdin.readline()
+    seq = SequenceAlignment( line, args.string_name )
 
-
-    dpTable = {}
-    
     while True:
         line = sys.stdin.readline()
         if not line:
             break
 
-        seq = SequenceAlignment( line, args.string_name )
-        print( seq )
+        seq.regen( line )
+
+        #time.sleep(3)
+
+    print_header( seq )
 
     """
     for word in sys.stdin.read().split():
