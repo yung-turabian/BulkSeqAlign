@@ -91,7 +91,7 @@ class SequenceAlignment:
                 if cA == cB: # Exact
                     penalty = self.penalties["exact"]
                 elif (not cA.isprintable() or not cB.isprintable()) and cA != cB:
-                    penalty = self.penalties["mismatch_non-printable"]
+                    penalty = self.penalties["mismatch_nonprintable"]
                 elif cA.isprintable() and cB.isprintable() and cA != cB:
                     penalty = self.penalties["mismatch_char"]
 
@@ -157,19 +157,17 @@ def main():
 
 
     
-    #seq = SequenceAlignment( "Hello", "H llo" )
-    #print( seq )
+    seq = SequenceAlignment( "Hello", "H llo" )
+    print( seq )
 
 
     dpTable = {}
-    
+
     while True:
         line = sys.stdin.readline()
+
         if not line:
             break
-
-        seq = SequenceAlignment( line, args.string_name )
-        print( seq )
 
     """
     for word in sys.stdin.read().split():
@@ -177,11 +175,11 @@ def main():
             dpTable[word] = 1
    
     condensed = list(dpTable)
-
     for word in condensed:
         if word == args.string_name:
             print(word)
-    """
+            """
+
     return 0
 
 if __name__ == "__main__":
