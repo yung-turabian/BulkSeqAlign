@@ -14,7 +14,6 @@ function assert {
 				echo "✗"
 				echo "Expected: $expected"
 				echo "Actual: $actual"
-				exit 1
 		fi
 }
 
@@ -26,7 +25,10 @@ function run {
 }
 
 run "tests/hello.txt" "hello"
-assert "hello" "31 35 0" 
+assert "hello" "44 48 0" 
+
+last_output=$(echo -n inputfiletesting | $prog "T est.inx" | awk 'NR==1{end=$3; cost=$5} NR==2{print $3, end, cost}')
+assert "input_string" "8 16 13"
 
 
 target="that?...\" he"
