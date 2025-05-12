@@ -48,6 +48,9 @@ class SequenceAlignment:
     """
     CHARGE_FOR_PRIOR_DELETIONS = False
 
+    # Kinda arbitrary
+    COST_CEILING = 25
+
     def __init__( self, text, target ):
         self.sText = text
         self.sTarget = target
@@ -62,17 +65,16 @@ class SequenceAlignment:
         self.iCost = None
         self.iStartIndex = None
 
-        self.compute_f_matrix()
-     
-        #print_matrix( self.F )
-        self.align()
+        self.bBestMatchFound = False
 
+        self.compute_f_matrix()
+        self.align()
 
     def __str__( self ):
         return f"Cost: {self.cost}\nAlignment:\n{self.sAlignment}"
 
     def print( self ):
-        if self:
+        if self and self.bBestMatchFound:
             iEndIndex = self.iStartIndex + self.iTargetLen
             print(f"opt index {self.iStartIndex + self.iTargetLen} cost {self.iCost}")
             print(f"Start at {self.iStartIndex} in the long text")
@@ -98,7 +100,6 @@ class SequenceAlignment:
         
         # Altered from the original Needleman, aligns from anywhere in sText,
         # doesn't penalize deletions before the match
-        # An optional gate that will perform the default global scope
         if self.CHARGE_FOR_PRIOR_DELETIONS:
             for i in range(self.iTextLen + 1):
                 self.matF[i][0] = i * self.iTextGapPenalty
@@ -117,12 +118,11 @@ class SequenceAlignment:
                 insert = self.matF[i][j - 1] + self.iTargetGapPenalty
                 self.matF[i][j] = min( match, delete, insert )
 
-        self.iMinCost = None
         self.iBestEndIndex = None
 
         aLastCol = self.matF[:, self.iTargetLen]
         self.iBestEndIndex = np.argmin( aLastCol )
-        self.iMinCost = aLastCol[self.iBestEndIndex]
+        self.iCost = aLastCol[self.iBestEndIndex]
 
     def align( self ):
         sAlignmentText = ""
@@ -152,9 +152,11 @@ class SequenceAlignment:
         sAlignment = "" 
         for c1, c2 in zip( sAlignmentText, sAlignmentTarget ):
             sAlignment += (c1 + c2 + '\n')
+        
+        if self.iCost < self.COST_CEILING:
+            self.bBestMatchFound = True
 
         self.sAlignment = sAlignment
-        self.iCost = self.iMinCost
         self.iStartIndex = i
 
 def main():
@@ -163,17 +165,15 @@ def main():
             description="A modified sequence alignment aglorithm for longer text inputs.",
             epilog='')
     parser.add_argument( 'target' )
-    parser.add_argument( "--somearg", help="some help", default="val" )
+    #parser.add_argument( "--somearg", help="some help", default="val" )
     args = parser.parse_args()
 
 
     sText = sys.stdin.read().strip('\n')
     sTarget = args.target
 
-    al = SequenceAlignment( sText, sTarget )
-    al.print()
-
-    
+    seqBestMatch = SequenceAlignment( sText, sTarget )
+    seqBestMatch.print()
 
     return 0
 

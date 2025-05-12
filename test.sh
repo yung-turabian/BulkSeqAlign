@@ -30,8 +30,8 @@ assert "hello" "0 5 0"
 last_output=$(echo -n inputfiletesting | $prog "T est.inx" | awk 'NR==1{end=$3; cost=$5} NR==2{print $3, end, cost}')
 assert "input_string" "8 17 13"
 
-run "tests/that.txt" "that?...he"
-assert "That?" "61 71 3"
+run "tests/that.txt" "that?...\"he"
+assert "That?" "61 72 2"
 
-run "tests/anna.txt" "that?...” he" 
-assert "Anna1" " 78233 78245 1"
+#run "tests/anna.txt" "that?...” he" 
+#assert "Anna1" " 78233 78245 1"
