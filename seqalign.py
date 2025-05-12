@@ -20,28 +20,14 @@ Bard College
 import argparse
 import sys
 import time
-import os
-import platform
-
-SYSTEM = platform.system()
-
-SKIPPED_CHAR = '_'
-
-def clear_console():
-    if SYSTEM == 'Windows':
-        os.system('cls')
-    elif SYSTEM in ('Linux', 'Darwin'):
-        os.system('clear')
-    else:
-        print("Operating system not supported to clear console.")
 
 """
 Prints a matrix, for debugging purposes. Also it is horrible and does not do any
 sort of alignment of lables or elements.
 """
 def print_matrix( m ):
-    for i, row in enumerate(m):
-        print (" ".join(map(str, row)) )
+    print( '\n'.join([''.join(['{:4}'.format( item ) for item in row])
+        for row in m]))
     print('')
 
 
@@ -65,97 +51,77 @@ class SequenceAlignment:
     F = []
 
     alignment = ""
-    cost = sys.maxsize
+    cost = -1
 
     start_index = 0
     end_index = 0
 
-    def __init__( self, A, B ):
-        self.A = A
-        self.B = B
-        self.nA = len( A )
-        self.nB = len( B )
-        self.dA = self.penalties["deletion_in_text"]
-        self.dB = self.penalties["deletion_in_target"]
-
-        self.compute_similarity_matrix()
-        #print_matrix( self.S )
+    def __init__( self, text, target ):
+        self.sText = text
+        self.sTarget = target
+        self.iTextLen = len( text )
+        self.iTargetLen = len( target )
+        self.iTextGapPenalty = self.penalties["deletion_in_text"]
+        self.iTargetGapPenalty = self.penalties["deletion_in_target"]
 
         self.compute_f_matrix()
-        #print_matrix( self.F )
-
-        self.seq_alignment()
+        self.compute_similarity_matrix()
+        #self.seq_alignment()
 
 
     def __str__( self ):
         return f"{self.alignment}"
-
-    def regen( self, newA ):
-        if self.cost == 0:
-            raise RuntimeError( "Error: Optimal adjacency already found!" )
-            return
-
-        self.A = newA
-        self.nA = len( newA )
-
-        self.compute_similarity_matrix()
-
-        self.compute_f_matrix()
-
-        self.seq_alignment()
-
-    """
-    `A` should be the long document.
-    """
+    
     def compute_similarity_matrix( self ):
-        self.S = [[0 for _ in range( self.nB )] for _ in range( self.nA )]
+        """
+        `A` should be the long document.
+        """
+        self.S = [[0 for _ in range( self.iTargetLen )] for _ in range( self.iTextLen )]
 
-        for i in range( self.nA ):
-            for j in range( self.nB ):
-                penalty = -1 # Something went wrong if this selected
+        for i in range( self.iTextLen ):
+            for j in range( self.iTargetLen ):
 
-                cA = self.A[i]
-                cB = self.B[j]
+                cA = self.sText[i]
+                cB = self.sTarget[j]
 
                 if cA == cB: # Exact
                     penalty = self.penalties["exact"]
-                elif (not cA.isprintable() or not cB.isprintable()) and cA != cB:
-                    penalty = self.penalties["mismatch_non-printable"]
                 elif cA.isprintable() and cB.isprintable() and cA != cB:
                     penalty = self.penalties["mismatch_char"]
+                else:
+                    penalty = self.penalties["mismatch_non-printable"]
 
-               
                 self.S[i][j] = penalty
 
-    """
-    """
+
     def compute_f_matrix( self ):
-        self.F = [[0 for _ in range( self.nB + 1 )] for _ in range( self.nA + 1 )]
+        self.F = [[0 for _ in range( self.iTextLen + 1 )] for _ in range( self.iTargetLen + 1 )]
 
-        for i in range( self.nA + 1 ):
-            self.F[i][0] = self.dA * i
+        for i in range( self.iTextLen ):
+            self.F[i][0] = i * self.iTextGapPenalty
 
-        for j in range( self.nB + 1 ):
-            self.F[0][j] = self.dB * j
+        for j in range( self.iTargetLen ):
+            self.F[0][j] = j * self.iTargetGapPenalty
 
-        for i in range( 1, self.nA + 1 ):
-            for j in range( 1, self.nB + 1 ):
-               
-                match = self.F[i - 1][j - 1] + self.S[i - 1][j - 1]
-                delete = self.F[i - 1][j] + self.dA
-                insert = self.F[i][j - 1] + self.dB
-                self.F[i][j] = min( match, delete, insert ) 
+        for i in range( 1, self.iTextLen ):
+            for j in range( 1, self.iTargetLen ):
+                
+                match = self.F[i - 1][j - 1] 
+                delete = self.F[i - 1][j] + self.iTextGapPenalty
+                insert = self.F[i][j - 1] + self.iTargetGapPenalty
+                self.F[i][j] = min( match, delete, insert )
+                
+        self.cost = self.F[self.iTextLen - 1][self.iTargetLen - 1] # Solution to largest subproblem
 
 
     def seq_alignment( self ):
         alignmentA = ""
         alignmentB = ""
-        i = self.nA
-        j = self.nB 
+        i = self.iTextLen
+        j = self.iTargetLen 
         
         min_cost = self.cost
         cost = 0
-
 
 
         # We don't care about multiple instances if they have same cost
@@ -169,28 +135,24 @@ class SequenceAlignment:
 
                 self.start_index = i + 1
             elif i > 0 and self.F[i][j] == self.F[i - 1][j] + self.dA:
-    
                 # Don't charge for deletions before the sequence
                 # we are searching for. This means if we are looking
                 # at the first index of target, ingore the previous
                 # of long text.
-                if self.A[i - 1] == self.A[0]:
-                    if self.B[j - 1] == self.A[i - 1]:
-                        alignmentA = self.A[i - 1] + alignmentA
+                if self.A[i] == self.A[0]:
+                    if self.B[j] == self.A[i]:
+                        alignmentA = self.A[i] + alignmentA
                         alignmentB = SKIPPED_CHAR + alignmentB
                         cost += self.dA
 
                 i -= 1
             else:
                 alignmentA = SKIPPED_CHAR + alignmentA
-                alignmentB = self.B[j - 1] + alignmentB
+                alignmentB = self.B[j] + alignmentB
                 cost += self.dB
                 j -= 1
 
-
         if cost < min_cost:
-
-
             alignmentStr = "" 
             for c1, c2 in zip( alignmentA, alignmentB ):
                 alignmentStr += (c1 + c2 + '\n')
@@ -200,7 +162,7 @@ class SequenceAlignment:
             self.end_index = self.start_index + len( alignmentA ) - 1
         else:
             return
-
+    
 
 def print_header( alignment ):
     print( f"opt index {alignment.end_index} cost {alignment.cost}" )
@@ -232,7 +194,6 @@ def main():
             break
 
         print_header( seq )
-        print_matrix( seq.S )
         print_matrix( seq.F )
         seq.regen( line )
 
