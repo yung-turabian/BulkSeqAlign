@@ -2,9 +2,11 @@
 # -*- coding: utf8 -*-
 """
 Uses the Needleman-Wunsch algorithm as a starting point.
+This program performs a global search over, ideally, a large
+text string for some target string.
 
 Henry Wandover
-8/5/2025
+13/5/2025
 Bard College
 """
 
@@ -40,6 +42,7 @@ class SequenceAlignment:
     }
 
     SKIPPED_CHAR = '_'
+
     """
     Don't charge for deletions before the sequence
     we are searching for. This means if we are looking
@@ -61,7 +64,7 @@ class SequenceAlignment:
 
         self.matF = None # F matrix, or cost/scoring matrix
 
-        self.sAlignment = None # The final alignment, vertical
+        self.sAlignment = None # The final alignment string, vertical
         self.iCost = None
         self.iStartIndex = None
 
@@ -105,6 +108,7 @@ class SequenceAlignment:
                 self.matF[i][0] = i * self.iTextGapPenalty
         else:
             for i in range(self.iTextLen + 1):
+                # This is the key difference, allows us to not assume strings match from beginning
                 self.matF[i][0] = 0
 
         for j in range( self.iTargetLen + 1 ):
@@ -168,7 +172,8 @@ def main():
     #parser.add_argument( "--somearg", help="some help", default="val" )
     args = parser.parse_args()
 
-
+    
+    # New line characters were causing trouble, just remove them all
     sText = sys.stdin.read().strip('\n')
     sTarget = args.target
 
